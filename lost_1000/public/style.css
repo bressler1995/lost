@@ -1,0 +1,151 @@
+body, html {
+    padding: 0;
+    margin:0;
+    overflow:hidden;
+}
+
+input {
+    line-height:25px;
+    color:#666;
+    background-color:rgba(255, 255, 255, 0.9);
+    border:2px solid #BBB;
+    border-radius:5px;
+    font-size:14px;
+    padding:5px;
+    box-sizing:border-box;
+}
+
+input:focus, input:active {
+    background-color:rgba(255, 255, 255, 1.0);
+    color:#333;
+    border:2px solid #7aafff;
+}
+
+.message_input {
+    width:40%;
+}
+
+.user_input {
+    width:340px;
+}
+
+.menu_button {
+    -webkit-transition: background-color 0.2s ease-out;
+    -moz-transition: background-color 0.2s ease-out;
+    -o-transition: background-color 0.2s ease-out;
+    transition: background-color 0.2s ease-out;
+
+    display:block;
+    border:0;
+    width:250px;
+    height:50px;
+    background-color:#c3352a;
+    color:#FFF;
+    font-size:14px;
+    line-height:50px;
+    text-align:center;
+    font-weight:bold;
+    border-radius:25px;
+
+}
+
+.opened::after {
+    content:'CLOSE';
+}
+
+.closed::after {
+    content:'MENU';
+}
+
+
+
+.menu_opt_button {
+    -webkit-transition: background-color 0.2s ease-out;
+    -moz-transition: background-color 0.2s ease-out;
+    -o-transition: background-color 0.2s ease-out;
+    transition: background-color 0.2s ease-out;
+
+    display:block;
+    border:0;
+    width:350px;
+    height:30px;
+    background-color:#333;
+    color:#FFF;
+    font-size:12px;
+    line-height:30px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.sub_button {
+    -webkit-transition: background-color 0.2s ease-out;
+    -moz-transition: background-color 0.2s ease-out;
+    -o-transition: background-color 0.2s ease-out;
+    transition: background-color 0.2s ease-out;
+    
+    width:40%;
+    border:0;
+    background-color:#2e81ff;
+    color:white;
+    line-height:40px;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+.user_submit {
+    -webkit-transition: background-color 0.2s ease-out;
+    -moz-transition: background-color 0.2s ease-out;
+    -o-transition: background-color 0.2s ease-out;
+    transition: background-color 0.2s ease-out;
+    
+    width:340px;
+    border:0;
+    background-color:#2e81ff;
+    color:white;
+    line-height:40px;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+@media screen and (max-width: 768px) {
+    .message_input {
+        width:calc(90% - 115px);
+    }
+
+    .user_input {
+        width:90%;
+    }
+
+    .sub_button {
+        width:calc(90% - 115px);
+    }
+
+    .user_submit {
+        width:90%;
+    }
+
+    .menu_opt_button {
+        width:92%;
+    }
+
+    .menu_button {
+        width:110px;
+        height:90px;
+        background-color:#c3352a;
+        color:#FFF;
+        font-size:14px;
+        line-height:70px;
+        text-align:center;
+        font-weight:bold;
+        border-radius:15px;
+    }
+    
+}
+
+.sub_button:hover {
+    background-color:#48b1e8;
+}
+
+.menu_button:hover {
+    background-color:#ea4b3f;
+}
