@@ -28,8 +28,10 @@ var message_trans = [];
 var message_posx = [];
 var message_posy = [];
 
+//Assets to import
 var sounds = [];
 var char_sprite = [];
+var bg_store = [];
 
 //misc
 var sub_active = false;
@@ -39,6 +41,25 @@ var target_global = 0;
 //user properties
 var whoami = "Hop Hop";
 
+//Game Progress
+var game_progress = 0;
+var progress_max = 3;
+var obstacle_current = [0, 0, 0];
+var obstacle_max = [2, 5, 7];
+
+//Character data
+var character_chords = [
+  [50, 100]
+];
+
+var character_size = [
+  [100, 120]
+];
+
+var character_speed = 15;
+
+var grass_height = 0;
+
 function preload() {
   // sounds[0] = loadSound('assets/recieve.mp3');
   // sounds[0].setVolume(0.7);
@@ -46,11 +67,15 @@ function preload() {
   // sounds[1].setVolume(0.7);
 
   char_sprite[0] = loadImage('assets/gumball_dad.png');
+  bg_store[0] = loadImage('assets/screen0.jpg');
+  bg_store[1] = loadImage('assets/screen1.jpg');
 }
 
 function setup() {
   //eventually iterate as assets become larger
   char_sprite[0].loadPixels();
+  bg_store[0].loadPixels();
+  bg_store[1].loadPixels();
 
   winWidth = windowWidth;
   winHeight = windowHeight;
@@ -75,11 +100,23 @@ function setup() {
     }
   );
 
+  socket.on('action',
+    // When we receive data
+    function(data) {      
+        console.log("SIGNAL FROM " + data.user_name + ": " + data.action_name);
+        progress_sync();
+    }
+  );
+
   socket.on('progress',
     // When we receive data
     function(data) {
-        console.log("PROGRESS: " + data.g_progress);
-        console.log("CURRENT OBSTACLE: " + data.o_current + "/" + data.o_max);
+        
+        game_progress = data.g_progress;
+        obstacle_current = JSON.parse(data.o_current);
+
+        console.log("PROGRESS: " + game_progress);
+        console.log("CURRENT OBSTACLE: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
     }
   );
   
@@ -130,15 +167,34 @@ function draw() {
   noStroke();
 
   if (screen == 0) {
-    var type_w = 340;
-    var type_h = 20;
-    var type_x = (winWidth / 2) - (type_w / 2);
-    var type_y = (winHeight / 2) - (type_h / 2) - 40;
+    
 
     background(0, 0, 0);
-    textSize(18);
-    fill(255);
-    text("What do you want your nickname to be?", type_x, type_y, type_w, type_h);
+
+    if(winWidth >= 768) {
+      var type_w = 350;
+      var type_h = 20;
+      var type_x = (winWidth / 2) - (type_w / 2);
+      var type_y = winHeight - 150;
+
+      image(bg_store[0], 0, 0, winWidth, winHeight);
+      textSize(18);
+      fill(0);
+      textStyle(BOLD);
+      text("What do you want your nickname to be?", type_x, type_y, type_w, type_h);
+    } else {
+      var type_w = 285;
+      var type_h = 20;
+      var type_x = (winWidth / 2) - (type_w / 2);
+      var type_y = winHeight - 130;
+
+      image(bg_store[1], 0, 0, winWidth, winHeight);
+      textSize(14);
+      fill(0);
+      textStyle(BOLD);
+      text("What do you want your nickname to be?", type_x, type_y, type_w, type_h);
+    }
+    
 
   } else if(screen == 1) {
     background(152, 227, 224);
@@ -244,9 +300,19 @@ function draw() {
     fill(115, 198, 82);
   
     if(winWidth >= 768) {
-      rect(0, winHeight - 70, winWidth, 70);
+      grass_height = 70;
+      rect(0, winHeight - grass_height, winWidth, grass_height);
     } else {
+      grass_height = 50;
       rect(0, winHeight - 50, winWidth, 50);
+    }
+
+    character_chords[0][1] = winHeight - grass_height - character_size[0][1];
+
+    if(character_chords[0][0] < winWidth - character_size[0][0] - 50) {
+      character_chords[0][0] += character_speed;
+    } else if(character_chords[0][0] > winWidth - character_size[0][0] - 50) {
+      character_chords[0][0] = winWidth - character_size[0][0] - 50;
     }
   
     fill(255);
@@ -266,7 +332,7 @@ function draw() {
 
     //game progression stuff here
     
-    image(char_sprite[0], 30, winHeight - 120 - 70, 100, 120);
+    image(char_sprite[0], character_chords[0][0], character_chords[0][1], character_size[0][0], character_size[0][1]);
   }
 
 }
@@ -283,7 +349,8 @@ function keyPressed() {
   if(keyCode == ENTER && screen == 0) {
     main_game();
   } else if(keyCode == ENTER && screen == 1) {
-    sendmouse();
+    //sendmouse();
+    act();
   }
 }
 
@@ -340,13 +407,11 @@ function ui_execution() {
 
 
     if (winWidth < 768) {
-      var uiny = (winHeight / 2) - (25 / 2);
-      userInput.position((winWidth / 2) - ((winWidth / 2) * 0.9), uiny);
-      userSubmit.position((winWidth / 2) - ((winWidth / 2) * 0.9), uiny + 50);
+      userInput.position((winWidth / 2) - ((winWidth / 2) * 0.9), winHeight - 100);
+      userSubmit.position((winWidth / 2) - ((winWidth / 2) * 0.9), winHeight - 50);
     } else {
-      var uiny = (winHeight / 2) - (25 / 2);
-      userInput.position((winWidth / 2) - (350 / 2), uiny);
-      userSubmit.position((winWidth / 2) - (350 / 2), uiny + 50);
+      userInput.position((winWidth / 2) - (350 / 2), winHeight - 120);
+      userSubmit.position((winWidth / 2) - (350 / 2), winHeight - 70);
     }
     
   } else if(screen == 1) {
@@ -415,4 +480,41 @@ function main_game() {
     alert("Nickname can't be blank!");
   }
   
+}
+
+function act() {
+
+      // Make a little object with  and y
+      var data = {
+        action_name:"DEFAULT ACTION",
+        user_name: whoami
+      };
+      
+      console.log("Sending action to server...");
+      // Send that object to the socket
+      socket.emit('action', data);
+      progress_sync();
+
+}
+
+function progress_sync() {
+  if(game_progress + 1 <= progress_max) {
+    if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+      obstacle_current[game_progress] = obstacle_current[game_progress] + 1;
+    } else {
+      game_progress++;
+    }
+  } else {
+    game_progress = 0;
+    obstacle_current[0] = 0;
+    obstacle_current[1] = 0;
+    obstacle_current[2] = 0;
+  }
+  
+  if (game_progress == progress_max) {
+    console.log("Game Complete");
+  } else {
+    console.log("Game Progress: " + game_progress);
+    console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
+  }
 }

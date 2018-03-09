@@ -53,8 +53,7 @@ io.sockets.on('connection',
 
       var data3 = {
         g_progress:game_progress,
-        o_current:obstacle_current[game_progress],
-        o_max:obstacle_max[game_progress]
+        o_current:JSON.stringify(obstacle_current)
       }
 
       io.to(socket.id).emit('progress', data3);
@@ -99,8 +98,13 @@ io.sockets.on('connection',
           obstacle_current[2] = 0;
         } 
 
-        console.log("Game Progress: " + game_progress);
-        console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
+        if (game_progress == progress_max) {
+          console.log("Game Complete");
+        } else {
+          console.log("Game Progress: " + game_progress);
+          console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
+        }
+        
 
         // Send it to all other clients
         socket.broadcast.emit('action', data);
