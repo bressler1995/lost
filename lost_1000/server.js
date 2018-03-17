@@ -8,13 +8,18 @@ var user_reg = [];
 var m_len = 1;
 
 var game_progress = 0;
-var progress_max = 3;
-var obstacle_current = [0, 0, 0];
-var obstacle_max = [2, 5, 7];
+var progress_max = 5;
+var obstacle_current = [0, 0, 0, 0, 0];
+var obstacle_max = [5, 3, 3, 3, 3];
+
+var obstacle_uname = [];
+var ou_current = 1;
 
 var contribution_storage = [];
 var contribution_user = [];
 var c_len = 1;
+
+var session_id = 0;
 
 // Set up the server
 // process.env.PORT is related to deploying on heroku
@@ -53,7 +58,10 @@ io.sockets.on('connection',
 
       var data3 = {
         g_progress:game_progress,
-        o_current:JSON.stringify(obstacle_current)
+        o_current:JSON.stringify(obstacle_current),
+        s_id:session_id,
+        ou:JSON.stringify(obstacle_uname),
+        ou_num: ou_current
       }
 
       io.to(socket.id).emit('progress', data3);
@@ -78,7 +86,9 @@ io.sockets.on('connection',
     socket.on('action',
       function(data) {
         // Data comes in as whatever was sent, including objects
-        console.log("Contribution Recieved by:" + data.action_name + ": " + data.user_name);
+        console.log("Contribution Recieved by " + data.user_name + ": " + data.action_name);
+        console.log("SESSION: " + data.s_id);
+        console.log("");
 
         //I HAVE YET TO DECIDE IF I WANT TO STORE THIS, I THINK I ONLY WANT TO STORE GAME STATES IN CASE OF DISCONNECT
         contribution_storage[c_len - 1] = data.action_name;
@@ -88,27 +98,41 @@ io.sockets.on('connection',
         if(game_progress + 1 <= progress_max) {
           if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
             obstacle_current[game_progress] = obstacle_current[game_progress] + 1;
+
+            obstacle_uname[ou_current - 1] = data.user_name;
+            ou_current += 1;
           } else {
+
+            for (var i=0; i < ou_current; i++) {
+              obstacle_uname[i] = "";
+            }
+
+            ou_current = 1;
+
             game_progress++;
           }
         } else {
           game_progress = 0;
-          obstacle_current[0] = 0;
-          obstacle_current[1] = 0;
-          obstacle_current[2] = 0;
+          for(var i = 0; i < progress_max; i++) {
+            obstacle_current[i] = 0;
+          }
         } 
 
         if (game_progress == progress_max) {
           console.log("Game Complete");
+          console.log(JSON.stringify(obstacle_uname));
+          session_id += 1;
         } else {
           console.log("Game Progress: " + game_progress);
           console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
+          console.log("Session ID: " + session_id);
+          console.log(JSON.stringify(obstacle_uname));
         }
         
 
         // Send it to all other clients
         socket.broadcast.emit('action', data);
-
+        
       }
     );
     

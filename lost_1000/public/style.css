@@ -4,6 +4,14 @@ body, html {
     overflow:hidden;
 }
 
+.obstacle_rock {
+    display:block;
+    background-color:transparent;
+    border:0;
+    width:600px;
+    height:calc(100% - 150px);
+}
+
 input {
     line-height:25px;
     color:#666;
@@ -69,7 +77,7 @@ input:focus, input:active {
     border:0;
     width:350px;
     height:30px;
-    background-color:#333;
+    background-color:#222;
     color:#FFF;
     font-size:12px;
     line-height:30px;
@@ -139,6 +147,10 @@ input:focus, input:active {
         font-weight:bold;
         border-radius:15px;
     }
+
+    .obstacle_rock {
+        width:100%;
+    }
     
 }
 
@@ -149,3 +161,9 @@ input:focus, input:active {
 .menu_button:hover {
     background-color:#ea4b3f;
 }
+
+button::-moz-focus-inner {
+    border: 0;
+  }
+  
+  

@@ -30,8 +30,8 @@ var message_posy = [];
 
 //Assets to import
 var sounds = [];
-var char_sprite = [];
 var bg_store = [];
+var bg_stages = [];
 
 //misc
 var sub_active = false;
@@ -43,9 +43,13 @@ var whoami = "Hop Hop";
 
 //Game Progress
 var game_progress = 0;
-var progress_max = 3;
-var obstacle_current = [0, 0, 0];
-var obstacle_max = [2, 5, 7];
+var progress_max = 5;
+var obstacle_current = [0, 0, 0, 0, 0];
+var obstacle_max = [5, 3, 3, 3, 3];
+var session_id = 0;
+
+var obstacle_uname = [];
+var ou_current = 1;
 
 //Character data
 var character_chords = [
@@ -53,12 +57,57 @@ var character_chords = [
 ];
 
 var character_size = [
-  [100, 120]
+  [120, 140]
 ];
 
-var character_speed = 15;
+//Obstacle Data
+var obstacle_size = [
+  [200, 200],
+  [200, 200],
+  [200, 200],
+  [200, 200],
+  [639, 600]
+];
 
+var obstacle_size_mobile = [
+  [100, 100],
+  [100, 100],
+  [100, 100],
+  [150, 150],
+  [339, 400]
+];
+
+
+var obstacle_rock;
+var rock_image = [];
+var log_image = [];
+
+var fire_image = [];
+var fire_frame = 0;
+
+var puma_image = [];
+var puma_frame = 0;
+
+var river_image = [];
+
+//IDLE >> MOVING >> SCARED >> HAPPY
+var char_display_state = 0;
+var char_frame = 0;
+var char_start = false;
+var char_end = false;
+var char_ready = false;
+var start_tick = false;
+var ease_mult = 0.08;
+
+//char assets
+var char_idle = [];
+var char_moving = [];
+var char_scared = [];
+var char_happy = [];
+
+//Environment Variables
 var grass_height = 0;
+var default_fps = 15;
 
 function preload() {
   // sounds[0] = loadSound('assets/recieve.mp3');
@@ -66,14 +115,86 @@ function preload() {
   // sounds[1] = loadSound('assets/send.mp3');
   // sounds[1].setVolume(0.7);
 
-  char_sprite[0] = loadImage('assets/gumball_dad.png');
+  //Character
+  for(var i = 0; i < 3; i++) {
+    var real_number = i + 1;
+    char_idle[i] = loadImage('assets/idle/' + real_number + '.png');
+    char_moving[i] = loadImage('assets/moving/' + real_number + '.png');
+    char_scared[i] = loadImage('assets/scared/' + real_number + '.png');
+    char_happy[i] = loadImage('assets/happy/' + real_number + '.png');
+  }
+
+  //Backgrounds
   bg_store[0] = loadImage('assets/screen0.jpg');
   bg_store[1] = loadImage('assets/screen1.jpg');
+
+  for (var i = 0; i < 6; i++) {
+    var real_number = i +1;
+    bg_stages[i] = loadImage('assets/background/bg' + real_number + '.jpg');
+  }
+
+  for (var i = 0; i < 4; i++) {
+    var real_number = i +1;
+    rock_image[i] = loadImage('assets/rocks/' + real_number + '.png');
+  }
+
+  for (var i = 0; i < 6; i++) {
+    var real_number = i +1;
+    fire_image[i] = loadImage('assets/fire/' + real_number + '.png');
+  }
+
+  for (var i = 0; i < 4; i++) {
+    var real_number = i + 1;
+    log_image[i] = loadImage('assets/logs/' + real_number + '.png');
+  }
+
+  for (var i = 0; i < 4; i++) {
+    var real_number = i + 1;
+    puma_image[i] = loadImage('assets/puma/' + real_number + '.png');
+  }
+
+  for (var i = 0; i < 4; i++) {
+    var real_number = i + 1;
+    river_image[i] = loadImage('assets/river/' + real_number + '.png');
+  }
+
 }
 
 function setup() {
-  //eventually iterate as assets become larger
-  char_sprite[0].loadPixels();
+  frameRate(default_fps);
+  //Load Character Images
+  for (var i = 0; i < 3; i++) {
+    char_idle[i].loadPixels();
+    char_moving[i].loadPixels();
+    char_scared[i].loadPixels();
+    char_happy[i].loadPixels();
+  }
+
+  for(var i = 0; i < 6; i++) {
+    bg_stages[i].loadPixels();
+  }
+
+  for (var i = 0; i < 4; i++) {
+    rock_image[i].loadPixels();
+  }
+
+  for (var i = 0; i < 6; i++) {
+    fire_image[i].loadPixels();
+  }
+
+  for (var i = 0; i < 4; i++) {
+    log_image[i].loadPixels();
+  }
+
+  for (var i = 0; i < 4; i++) {
+    puma_image[i].loadPixels();
+  }
+
+  for (var i = 0; i < 4; i++) {
+    river_image[i].loadPixels();
+  }
+
+  //Load BG
   bg_store[0].loadPixels();
   bg_store[1].loadPixels();
 
@@ -104,7 +225,10 @@ function setup() {
     // When we receive data
     function(data) {      
         console.log("SIGNAL FROM " + data.user_name + ": " + data.action_name);
+        console.log("SESSION: " + data.s_id);
+
         progress_sync();
+        post_sync(data.user_name);
     }
   );
 
@@ -114,10 +238,14 @@ function setup() {
         
         game_progress = data.g_progress;
         obstacle_current = JSON.parse(data.o_current);
+        session_id = data.s_id;
+        obstacle_uname = JSON.parse(data.ou);
+        ou_current = data.ou_num;
 
         console.log("PROGRESS: " + game_progress);
         console.log("CURRENT OBSTACLE: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
-    }
+        console.log("Session ID: " + session_id);
+      }
   );
   
   //Screen 1
@@ -128,6 +256,9 @@ function setup() {
   confInput = createInput('SAY SOMETHING!');
   subOut = createButton("ENTER");
   menu_button = createButton("");
+  obstacle_rock = createButton("");
+
+  //Menu Button on top of obstacle
   how_button = createButton("HOW TO");
   about_button = createButton("ABOUT");
   log_button = createButton("LOG");
@@ -143,6 +274,7 @@ function setup() {
   //may need to mod later like sub out for mobile
   menu_button.mousePressed(open_menu);
   userSubmit.mousePressed(main_game);
+  obstacle_rock.mousePressed(act);
   
   //FIRST SCREEN
   userInput.addClass("user_input")
@@ -156,6 +288,7 @@ function setup() {
   how_button.addClass("menu_opt_button");
   about_button.addClass("menu_opt_button");
   log_button.addClass("menu_opt_button");
+  obstacle_rock.addClass("obstacle_rock");
 
   //IMPORTANT, THIS IS USED IN RESIZE AS WELL
   ui_execution();
@@ -198,30 +331,32 @@ function draw() {
 
   } else if(screen == 1) {
     background(152, 227, 224);
+    image(bg_stages[game_progress], 0, 0, winWidth, winHeight);
 
     //chat stuff here
     var inline_mobile = 0;
-
+    
     if(typeof message_storage[0] !== 'undefined') {
       if (winWidth >= 768) {
 
-        if(message_storage.length >= 5) {
-          for(var i = message_storage.length - 5; i < message_storage.length; i++) {
+        if(message_storage.length >= 3) {
+          for(var i = message_storage.length - 3; i < message_storage.length; i++) {
             if(message_touched[i] != true) {
               message_trans[i] = 0;
               message_posx[i] = random(0, winWidth - 250);
-              message_posy[i] = random(70, winHeight - 270);
+              message_posy[i] = random(150, winHeight - 270);
               message_touched[i] = true;
             }
 
-            if(message_trans[i] < 200) {
-              message_trans[i] += 10;
+            if(message_trans[i] < 150) {
+              message_trans[i] += 20;
             }
             
             fill(0, 0, 0, message_trans[i]);
             rect(message_posx[i], message_posy[i], 250, 120);
             fill(255);
-            textSize(12);
+            textStyle(BOLD);
+            textSize(14);
             text(user_reg[i] + ": " + message_storage[i], message_posx[i] + 20, message_posy[i] + 20, 220, 100);
           }
         } else {
@@ -229,18 +364,19 @@ function draw() {
             if(message_touched[i] != true) {
               message_trans[i] = 0;
               message_posx[i] = random(0, winWidth - 250);
-              message_posy[i] = random(70, winHeight - 270);
+              message_posy[i] = random(150, winHeight - 270);
               message_touched[i] = true;
             }
 
-            if(message_trans[i] < 200) {
-              message_trans[i] += 10;
+            if(message_trans[i] < 150) {
+              message_trans[i] += 20;
             }
             
             fill(0, 0, 0, message_trans[i]);
             rect(message_posx[i], message_posy[i], 250, 120);
             fill(255);
-            textSize(12);
+            textStyle(BOLD);
+            textSize(14);
             text(user_reg[i] + ": " + message_storage[i], message_posx[i] + 20, message_posy[i] + 20, 220, 100);
           }
         }
@@ -257,14 +393,15 @@ function draw() {
             var mobile_x = 20;
             var mobile_y = (inline_mobile * 40) + 130;
 
-            if(message_trans[i] < 200) {
-              message_trans[i] += 10;
+            if(message_trans[i] < 150) {
+              message_trans[i] += 20;
             }
             
             fill(0, 0, 0, message_trans[i]);
             rect(mobile_x, mobile_y, winWidth * 0.92, 30);
             fill(255);
-            textSize(12);
+            textStyle(BOLD);
+            textSize(14);
             text(user_reg[i] + ": " + message_storage[i], mobile_x + 10, mobile_y + 10, 220, 20);
 
             inline_mobile++;
@@ -280,14 +417,15 @@ function draw() {
             var mobile_x = 20;
             var mobile_y = (inline_mobile * 40) + 130;
 
-            if(message_trans[i] < 200) {
-              message_trans[i] += 10;
+            if(message_trans[i] < 150) {
+              message_trans[i] += 20;
             }
             
             fill(0, 0, 0, message_trans[i]);
             rect(mobile_x, mobile_y, winWidth * 0.92, 30);
             fill(255);
-            textSize(12);
+            textStyle(BOLD);
+            textSize(14);
             text(user_reg[i] + ": " + message_storage[i], mobile_x + 10, mobile_y + 10, 220, 20);
 
             inline_mobile++;
@@ -298,24 +436,87 @@ function draw() {
     
     //Non DOM based UI Stuff Here
     fill(115, 198, 82);
-  
-    if(winWidth >= 768) {
-      grass_height = 70;
-      rect(0, winHeight - grass_height, winWidth, grass_height);
-    } else {
-      grass_height = 50;
-      rect(0, winHeight - 50, winWidth, 50);
+    var target_temporary = 0;
+    var temp_image;
+
+    if (char_frame < 3) {
+      if(char_display_state == 0) {
+        temp_image = char_idle[char_frame];
+      } else if(char_display_state == 1) {
+        temp_image = char_moving[char_frame];
+      } else if(char_display_state == 2) {
+        temp_image = char_scared[char_frame];
+      } else if(char_display_state == 3) {
+        temp_image = char_happy[char_frame];
+      }
+      
+      char_frame++;
+      
+      if (char_frame == 3) {
+        char_frame = 0;
+      }
     }
+
+    if (char_start == false) {
+      if(winWidth >= 768) {
+        grass_height = 30;
+        character_size[0][0] = 120;
+        character_size[0][1] = 140;
+      } else {
+        grass_height = 30;
+        character_size[0][0] = 70;
+        character_size[0][1] = 90;
+      }
+
+      if (start_tick == false) {
+        setTimeout(function(){ char_start = true }, 1500);
+        start_tick = true;
+      }
+      
+    } else {
+      if(winWidth >= 768) {
+        grass_height = 30;
+        character_size[0][0] = 120;
+        character_size[0][1] = 140;
+        target_temporary = winWidth - character_size[0][0] - 400; 
+      } else {
+        grass_height = 30;
+        character_size[0][0] = 70;
+        character_size[0][1] = 90;
+        target_temporary = winWidth - character_size[0][0] - 140;
+      }
+    } 
 
     character_chords[0][1] = winHeight - grass_height - character_size[0][1];
 
-    if(character_chords[0][0] < winWidth - character_size[0][0] - 50) {
-      character_chords[0][0] += character_speed;
-    } else if(character_chords[0][0] > winWidth - character_size[0][0] - 50) {
-      character_chords[0][0] = winWidth - character_size[0][0] - 50;
+    char_end = false;
+
+    if(character_chords[0][0] < target_temporary - 30) {
+      character_ease(target_temporary);
+      char_display_state = 1;
+      char_ready = false;
+    } else if(character_chords[0][0] > target_temporary) {
+      character_chords[0][0] = target_temporary;  
+    } else {
+      if(char_start == true) {
+        if (obstacle_current[game_progress] == obstacle_max[game_progress]) {
+          char_display_state = 3;
+          char_ready = true;
+          char_end = true;
+        } else {
+          char_display_state = 2;
+          char_ready = true;
+        }
+      } else {
+        char_ready = false;
+        char_display_state = 0;
+      }
+     
     }
+
+    obstacle_generate();
   
-    fill(255);
+    fill(255, 255, 255, 220);
     if(winWidth >= 768) {
       rect(winWidth - 210, winHeight - 60, 200, 50);
       fill(0);
@@ -328,11 +529,19 @@ function draw() {
       textSize(14);
       textStyle(BOLD);
       text("jennjunseo.com/Lost", winWidth - 180, winHeight - 20);
-    }
+    }   
 
     //game progression stuff here
+    if (obstacle_current[game_progress] == obstacle_max[game_progress] && char_end == true) {
+      if(winWidth >= 768) {
+        image(temp_image, character_chords[0][0], character_chords[0][1] - 30, 160, 180);
+      } else {
+        image(temp_image, character_chords[0][0], character_chords[0][1] - 30, 100, 120);
+      }
+    } else {
+      image(temp_image, character_chords[0][0], character_chords[0][1], character_size[0][0], character_size[0][1]);
+    }
     
-    image(char_sprite[0], character_chords[0][0], character_chords[0][1], character_size[0][0], character_size[0][1]);
   }
 
 }
@@ -349,8 +558,8 @@ function keyPressed() {
   if(keyCode == ENTER && screen == 0) {
     main_game();
   } else if(keyCode == ENTER && screen == 1) {
-    //sendmouse();
-    act();
+    sendmouse();
+    //act();
   }
 }
 
@@ -405,6 +614,7 @@ function ui_execution() {
     about_button.position(-100, -100);
     log_button.position(-100, -100);
 
+    obstacle_rock.position(-1000, -1000);
 
     if (winWidth < 768) {
       userInput.position((winWidth / 2) - ((winWidth / 2) * 0.9), winHeight - 100);
@@ -424,6 +634,7 @@ function ui_execution() {
       confInput.position(calcwidth, 20);
       subOut.position(calcwidth, 70);
       menu_button.position(15, 20);
+      obstacle_rock.position(0, 150);
   
       if(menu_open == false) {
         how_button.position(-100, -100);
@@ -439,6 +650,7 @@ function ui_execution() {
       confInput.position(winWidth - (winWidth * 0.4) - 20, 20);
       subOut.position(winWidth - (winWidth * 0.4) - 20, 70);
       menu_button.position(20, 20);
+      obstacle_rock.position(winWidth - 600, 150);
   
       if(menu_open == false) {
         how_button.position(-100, -100);
@@ -483,38 +695,278 @@ function main_game() {
 }
 
 function act() {
-
-      // Make a little object with  and y
-      var data = {
-        action_name:"DEFAULT ACTION",
-        user_name: whoami
-      };
+      if(char_ready == true || (game_progress == progress_max)) {
+        // Make a little object with  and y
+        var data = {
+          action_name:"DEFAULT ACTION",
+          user_name: whoami,
+          s_id: session_id
+        };
+        
+        console.log("Sending action to server...");
+        // Send that object to the socket
+        socket.emit('action', data);
+        progress_sync();
+        post_sync(data.user_name);
+      } else {
+        console.log("not ready...");
+      }
       
-      console.log("Sending action to server...");
-      // Send that object to the socket
-      socket.emit('action', data);
-      progress_sync();
-
 }
 
+//SYNC GAME PROGRESS
 function progress_sync() {
   if(game_progress + 1 <= progress_max) {
     if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
       obstacle_current[game_progress] = obstacle_current[game_progress] + 1;
     } else {
+
       game_progress++;
+      char_display_state = 0;
+      char_frame = 0;
+      char_start = false;
+      char_end = false;
+      char_ready = false;
+      start_tick = false;
+      character_chords[0][0] = 50;
+      fire_frame = 0;
+      puma_frame = 0;
     }
   } else {
     game_progress = 0;
-    obstacle_current[0] = 0;
-    obstacle_current[1] = 0;
-    obstacle_current[2] = 0;
+    for(var i = 0; i < progress_max; i++) {
+      obstacle_current[i] = 0;
+    }
+    
   }
   
   if (game_progress == progress_max) {
     console.log("Game Complete");
+    session_id += 1;
   } else {
     console.log("Game Progress: " + game_progress);
     console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
+    console.log("Session ID: " + session_id);
   }
+}
+
+//SYNC RELEVANT CONTRIBUTORS
+function post_sync(name_param) {
+  obstacle_uname[ou_current - 1] = name_param;
+  ou_current += 1;
+  
+  if(obstacle_current[game_progress] == obstacle_max[game_progress]) {
+        
+    ou_current -= 1;
+    var name_composition = "";
+    for (var i = 0; i < ou_current; i++) {
+      name_composition = name_composition + obstacle_uname[i] + ",";
+    }
+
+    alert("obstacle cleared by: " + name_composition);
+
+    for (var i=0; i < ou_current; i++) {
+      obstacle_uname[i] = "";
+    }
+    
+    ou_current = 1;
+  }
+}
+
+function character_ease(target) {
+  var targetX = target;
+  var dx = targetX - character_chords[0][0];
+  character_chords[0][0] += dx * ease_mult;
+}
+
+function obstacle_generate() {
+
+    if(game_progress == 0) {
+      var dy_width = obstacle_size[0][0];
+      var dy_height = obstacle_size[0][1];
+
+      if (winWidth < 768) {
+        dy_width = obstacle_size_mobile[0][0];
+        dy_height = obstacle_size_mobile[0][1];
+      }
+
+      var d_x = winWidth - dy_width;
+      var d_y = winHeight - dy_height - grass_height;
+      var disp_text = "TAP FIRE"
+
+      if (obstacle_current[game_progress] > 0) {
+        disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
+      }
+
+      textStyle(BOLD);
+      fill(255);
+
+      if(winWidth < 768) {
+        textSize(18);
+        text(disp_text, random(15 - 5, 15 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      } else {
+        textSize(24);
+        text(disp_text, random(d_x - 50 - 5, d_x - 50 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      }
+      
+
+      if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+        if(fire_frame < 3) {
+          image(fire_image[fire_frame], d_x - 50, d_y - 15, dy_width, dy_height);
+          fire_frame ++;
+  
+          if(fire_frame == 3) {
+            fire_frame = 0;
+          }
+        }
+      } else {
+        if(fire_frame < 3) {
+          fire_frame = 3;
+        }
+
+        if(fire_frame < 5) {
+          fire_frame ++;
+        }
+
+        image(fire_image[fire_frame], d_x - 50, d_y - 15, dy_width, dy_height);
+
+      }
+      
+      
+    } else if(game_progress == 1) {
+      var dy_width = obstacle_size[1][0];
+      var dy_height = obstacle_size[1][1];
+
+      if (winWidth < 768) {
+        dy_width = obstacle_size_mobile[1][0];
+        dy_height = obstacle_size_mobile[1][1];
+      }
+
+      var d_x = winWidth - dy_width;
+      var d_y = winHeight - dy_height - grass_height;
+      var disp_text = "TAP ROCK"
+
+      if (obstacle_current[game_progress] > 0) {
+        disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
+      }
+
+      textStyle(BOLD);
+      fill(255);
+
+      if(winWidth < 768) {
+        textSize(18);
+        text(disp_text, random(15 - 5, 15 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      } else {
+        textSize(24);
+        text(disp_text, random(d_x - 75 - 5, d_x - 75 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      }
+      
+      image(rock_image[obstacle_current[game_progress]], d_x - 50, d_y - 15, dy_width, dy_height);
+    
+    } else if(game_progress == 2) {
+      var dy_width = obstacle_size[2][0];
+      var dy_height = obstacle_size[2][1];
+
+      if (winWidth < 768) {
+        dy_width = obstacle_size_mobile[2][0];
+        dy_height = obstacle_size_mobile[2][1];
+      }
+
+      var d_x = winWidth - dy_width;
+      var d_y = winHeight - dy_height - grass_height;
+      var disp_text = "TAP LOGS"
+
+      if (obstacle_current[game_progress] > 0) {
+        disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
+      }
+
+      textStyle(BOLD);
+      fill(255);
+
+      if(winWidth < 768) {
+        textSize(18);
+        text(disp_text, random(15 - 5, 15 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      } else {
+        textSize(24);
+        text(disp_text, random(d_x - 65 - 5, d_x - 65 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      }
+      
+      image(log_image[obstacle_current[game_progress]], d_x - 50, d_y - 15, dy_width, dy_height);
+    } else if(game_progress == 3) {
+      var dy_width = obstacle_size[3][0];
+      var dy_height = obstacle_size[3][1];
+
+      if (winWidth < 768) {
+        dy_width = obstacle_size_mobile[3][0];
+        dy_height = obstacle_size_mobile[3][1];
+      }
+
+      var d_x = winWidth - dy_width;
+      var d_y = winHeight - dy_height - grass_height;
+      var disp_text = "TAP PUMA"
+
+      if (obstacle_current[game_progress] > 0) {
+        disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
+      }
+
+      textStyle(BOLD);
+      fill(255);
+      
+      if(winWidth < 768) {
+        textSize(18);
+        text(disp_text, random(15 - 5, 15 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      } else {
+        textSize(24);
+        text(disp_text, random(d_x - 75 - 5, d_x - 75 + 5), random(d_y - 25 - 5, d_y - 25 + 5));
+      }
+
+      if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+        if(puma_frame < 3) {
+          image(puma_image[puma_frame], d_x - 50, d_y - 15, dy_width, dy_height);
+          puma_frame ++;
+  
+          if(puma_frame == 3) {
+            puma_frame = 0;
+          }
+        }
+      } else {
+
+        image(puma_image[3], d_x - 50, d_y - 15, dy_width, dy_height);
+
+      }
+
+    } else if(game_progress == 4) {
+      var dy_width = obstacle_size[4][0];
+      var dy_height = obstacle_size[4][1];
+
+      if (winWidth < 768) {
+        dy_width = obstacle_size_mobile[4][0];
+        dy_height = obstacle_size_mobile[4][1];
+      }
+
+      var d_x = winWidth - dy_width;
+      var d_y = winHeight - dy_height;
+      var t_x = winWidth - 350;
+      var t_y = winHeight - grass_height - 100;
+      var disp_text = "TAP ME"
+
+      if (obstacle_current[game_progress] > 0) {
+        disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
+      }
+
+      textStyle(BOLD);
+      fill(255);
+
+      if(winWidth < 768) {
+        textSize(18);
+        text(disp_text, random(15 - 5, 15 + 5), random(t_y - 5, t_y + 5));
+      } else {
+        textSize(24);
+        text(disp_text, random(t_x - 5, t_x + 5), random(t_y - 5, t_y + 5));
+      }
+      
+      image(river_image[obstacle_current[game_progress]], d_x + 70, d_y + 20, dy_width, dy_height);
+    
+    }
+
 }
