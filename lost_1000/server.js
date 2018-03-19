@@ -17,6 +17,8 @@ var ou_current = 1;
 
 var contribution_storage = [];
 var contribution_user = [];
+var contribution_session = [];
+
 var c_len = 1;
 
 var session_id = 0;
@@ -65,6 +67,14 @@ io.sockets.on('connection',
       }
 
       io.to(socket.id).emit('progress', data3);
+
+      var data4 = {
+        c_name: JSON.stringify(contribution_user),
+        c_sess: JSON.stringify(contribution_session),
+        c_curr: c_len
+      }
+
+      io.to(socket.id).emit('gresult', data4);
     
     
     // MESSAGE EMISSIONS
@@ -91,9 +101,11 @@ io.sockets.on('connection',
         console.log("");
 
         //I HAVE YET TO DECIDE IF I WANT TO STORE THIS, I THINK I ONLY WANT TO STORE GAME STATES IN CASE OF DISCONNECT
-        contribution_storage[c_len - 1] = data.action_name;
-        contribution_user[c_len - 1] = data.user_name;
-        c_len++;
+        if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+          contribution_user[c_len - 1] = data.user_name;
+          contribution_session[c_len - 1] = data.session_id;
+          c_len++;
+        }
 
         if(game_progress + 1 <= progress_max) {
           if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
@@ -116,12 +128,20 @@ io.sockets.on('connection',
           for(var i = 0; i < progress_max; i++) {
             obstacle_current[i] = 0;
           }
+
+          for(var i = 0; i < c_len; i++) {
+            contribution_user[i] = "";
+            contribution_session[i] = 0;
+          }
+
+          c_len = 1;
         } 
 
         if (game_progress == progress_max) {
           console.log("Game Complete");
           console.log(JSON.stringify(obstacle_uname));
           session_id += 1;
+          c_len--;
         } else {
           console.log("Game Progress: " + game_progress);
           console.log("Current Obstacle: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);

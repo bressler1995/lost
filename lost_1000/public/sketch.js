@@ -47,9 +47,15 @@ var progress_max = 5;
 var obstacle_current = [0, 0, 0, 0, 0];
 var obstacle_max = [5, 3, 3, 3, 3];
 var session_id = 0;
+var game_complete = false;
+
+var post_check = false;
+var post_transparency = 0;
 
 var obstacle_uname = [];
 var ou_current = 1;
+
+var thanks_transparency = 0;
 
 //Character data
 var character_chords = [
@@ -108,6 +114,15 @@ var char_happy = [];
 //Environment Variables
 var grass_height = 0;
 var default_fps = 15;
+
+//contribution storage
+var contribution_user = [];
+var contribution_session = [];
+var c_len = 1;
+
+//menu stuff
+var about_open = false;
+var howto_open = false;
 
 function preload() {
   // sounds[0] = loadSound('assets/recieve.mp3');
@@ -229,6 +244,16 @@ function setup() {
 
         progress_sync();
         post_sync(data.user_name);
+
+        if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+          contribution_user[c_len - 1] = data.user_name;
+          contribution_session[c_len - 1] = data.session_id;
+          c_len++;
+        }
+
+        if(game_progress == progress_max) {
+          c_len--;
+        }
     }
   );
 
@@ -242,10 +267,28 @@ function setup() {
         obstacle_uname = JSON.parse(data.ou);
         ou_current = data.ou_num;
 
+        if(obstacle_current[game_progress] == obstacle_max[game_progress]) {
+          post_check = true;
+        }
+
+        if(game_progress == progress_max) {
+          game_complete = true;
+        } else {
+          game_complete = false;
+        }
+
         console.log("PROGRESS: " + game_progress);
         console.log("CURRENT OBSTACLE: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress]);
         console.log("Session ID: " + session_id);
       }
+  );
+
+  socket.on('gresult',
+    function(data) {
+      contribution_user = JSON.parse(data.c_name);
+      contribution_session = JSON.parse(data.c_sess);
+      c_len = data.c_curr;
+    }
   );
   
   //Screen 1
@@ -261,7 +304,7 @@ function setup() {
   //Menu Button on top of obstacle
   how_button = createButton("HOW TO");
   about_button = createButton("ABOUT");
-  log_button = createButton("LOG");
+  //log_button = createButton("LOG");
 
 
   //Assign Mouse or Touch Events
@@ -275,6 +318,10 @@ function setup() {
   menu_button.mousePressed(open_menu);
   userSubmit.mousePressed(main_game);
   obstacle_rock.mousePressed(act);
+
+  //menu items
+  // how_button.mousePressed();
+  // about_button.mousePressed();
   
   //FIRST SCREEN
   userInput.addClass("user_input")
@@ -287,7 +334,7 @@ function setup() {
   menu_button.addClass("closed");
   how_button.addClass("menu_opt_button");
   about_button.addClass("menu_opt_button");
-  log_button.addClass("menu_opt_button");
+  //log_button.addClass("menu_opt_button");
   obstacle_rock.addClass("obstacle_rock");
 
   //IMPORTANT, THIS IS USED IN RESIZE AS WELL
@@ -541,6 +588,78 @@ function draw() {
     } else {
       image(temp_image, character_chords[0][0], character_chords[0][1], character_size[0][0], character_size[0][1]);
     }
+
+    //Any overlayed stuff
+    if (post_check == true && game_complete == false) {
+
+      if(post_transparency < 230) {
+        post_transparency += 20;
+      }
+
+      if(winWidth < 768) {
+        fill(245, 200, 79, post_transparency);
+        rect(0, 120, winWidth, winHeight - 120);
+        fill(0, 0, 0, post_transparency);
+        textStyle(BOLD);
+        textSize(24);
+        text("CONGRATULATIONS:", 10, 160);
+        textSize(20);
+        for (var i = 0; i < ou_current; i++) {
+          text(obstacle_uname[i], 10, 200 +(i* 30));
+        }
+      } else {
+        fill(245, 200, 79, post_transparency);
+        rect(100,200, 300, winHeight - 300);
+        fill(0, 0, 0, post_transparency);
+        textStyle(BOLD);
+        textSize(24);
+        text("CONGRATULATIONS:", 110, 230);
+        textSize(20);
+        for (var i = 0; i < ou_current; i++) {
+          text(obstacle_uname[i], 110, 260 +(i* 30));
+        }
+      }
+
+      
+    }
+
+    if(game_complete == true) {
+      if(thanks_transparency < 230) {
+        thanks_transparency += 20;
+      }
+
+      if (winWidth < 768) {
+        fill(245, 200, 79, thanks_transparency);
+        rect(0, 120, winWidth, winHeight - 120);
+
+        for(var i = 0; i < c_len; i++) {
+          fill(0, 0, 0, thanks_transparency);
+          textStyle(BOLD);
+          textSize(12);
+          text("THANK YOU FOR HELPING ME:", 23, 150);
+          textSize(11);
+          text(contribution_user[i], 40, 180 + (i * 15));
+        }
+      } else {
+        for(var i = 0; i < c_len; i++) {
+          fill(0);
+          textStyle(BOLD);
+          textSize(18);
+          text("THANK YOU FOR HELPING ME:", 23, 120);
+          textSize(12);
+          text(contribution_user[i], 40, 150 + (i * 20));
+        }
+      }
+      
+    }
+
+    if(about_open == true) {
+
+    }
+
+    if (howto_open == true) {
+
+    }
     
   }
 
@@ -612,7 +731,7 @@ function ui_execution() {
 
     how_button.position(-100, -100);
     about_button.position(-100, -100);
-    log_button.position(-100, -100);
+    //log_button.position(-100, -100);
 
     obstacle_rock.position(-1000, -1000);
 
@@ -639,12 +758,12 @@ function ui_execution() {
       if(menu_open == false) {
         how_button.position(-100, -100);
         about_button.position(-100, -100);
-        log_button.position(-100, -100);
+        //log_button.position(-100, -100);
       } else {
         var mobile_pos = (winWidth / 2) - ((winWidth * 0.92) / 2);
         how_button.position(mobile_pos, 130);
         about_button.position(mobile_pos, 160);
-        log_button.position(mobile_pos, 190);
+        //log_button.position(mobile_pos, 190);
       }
     } else {
       confInput.position(winWidth - (winWidth * 0.4) - 20, 20);
@@ -655,11 +774,11 @@ function ui_execution() {
       if(menu_open == false) {
         how_button.position(-100, -100);
         about_button.position(-100, -100);
-        log_button.position(-100, -100);
+        //log_button.position(-100, -100);
       } else {
         how_button.position(20, 85);
         about_button.position(20, 115);
-        log_button.position(20, 145);
+        //log_button.position(20, 145);
       }
     }
   }
@@ -696,6 +815,16 @@ function main_game() {
 
 function act() {
       if(char_ready == true || (game_progress == progress_max)) {
+        //Ensure that post check is enabled first
+        if(post_check == true) {
+          for (var i=0; i < ou_current; i++) {
+            obstacle_uname[i] = "";
+          }
+          
+          ou_current = 1;
+          post_check = false;
+          post_transparency = 0;
+        }
         // Make a little object with  and y
         var data = {
           action_name:"DEFAULT ACTION",
@@ -706,8 +835,19 @@ function act() {
         console.log("Sending action to server...");
         // Send that object to the socket
         socket.emit('action', data);
+
+        if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
+          contribution_user[c_len - 1] = data.user_name;
+          contribution_session[c_len - 1] = data.session_id;
+          c_len++;
+        }
+
         progress_sync();
         post_sync(data.user_name);
+
+        if(game_progress == progress_max) {
+          c_len--;
+        }
       } else {
         console.log("not ready...");
       }
@@ -720,7 +860,6 @@ function progress_sync() {
     if(obstacle_current[game_progress] < obstacle_max[game_progress]) {
       obstacle_current[game_progress] = obstacle_current[game_progress] + 1;
     } else {
-
       game_progress++;
       char_display_state = 0;
       char_frame = 0;
@@ -734,14 +873,32 @@ function progress_sync() {
     }
   } else {
     game_progress = 0;
+    game_complete = false;
     for(var i = 0; i < progress_max; i++) {
       obstacle_current[i] = 0;
     }
+
+    for(var i = 0; i < c_len; i++) {
+      contribution_user[i] = "";
+      contribution_session[i] = 0;
+    }
+
+    c_len = 1;
+    char_display_state = 0;
+      char_frame = 0;
+      char_start = false;
+      char_end = false;
+      char_ready = false;
+      start_tick = false;
+      character_chords[0][0] = 50;
+      fire_frame = 0;
+      puma_frame = 0;
     
   }
   
   if (game_progress == progress_max) {
     console.log("Game Complete");
+    game_complete = true;
     session_id += 1;
   } else {
     console.log("Game Progress: " + game_progress);
@@ -752,24 +909,29 @@ function progress_sync() {
 
 //SYNC RELEVANT CONTRIBUTORS
 function post_sync(name_param) {
-  obstacle_uname[ou_current - 1] = name_param;
-  ou_current += 1;
+    console.log("post incremented");
+    obstacle_uname[ou_current - 1] = name_param;
+    ou_current += 1;
+
+    if(obstacle_current[game_progress] == 0 && ou_current > 1) {
+      obstacle_uname[0] = "";
+      ou_current = 1;
+    }
+
+    if(obstacle_current[game_progress] == 0 && post_check == true) {
+      for (var i=0; i < ou_current; i++) {
+        obstacle_uname[i] = "";
+      }
+      
+      ou_current = 1;
+      post_check = false;
+      post_transparency = 0;
+    }
   
   if(obstacle_current[game_progress] == obstacle_max[game_progress]) {
         
     ou_current -= 1;
-    var name_composition = "";
-    for (var i = 0; i < ou_current; i++) {
-      name_composition = name_composition + obstacle_uname[i] + ",";
-    }
-
-    alert("obstacle cleared by: " + name_composition);
-
-    for (var i=0; i < ou_current; i++) {
-      obstacle_uname[i] = "";
-    }
-    
-    ou_current = 1;
+    post_check = true;
   }
 }
 
@@ -948,7 +1110,7 @@ function obstacle_generate() {
       var d_y = winHeight - dy_height;
       var t_x = winWidth - 350;
       var t_y = winHeight - grass_height - 100;
-      var disp_text = "TAP ME"
+      var disp_text = "TAP RIVER"
 
       if (obstacle_current[game_progress] > 0) {
         disp_text = "Helpers needed: " + obstacle_current[game_progress] + "/" + obstacle_max[game_progress];
